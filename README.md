@@ -35,8 +35,8 @@ $ tensorboard --logdir='runs' --port=6006 --host='localhost'
 You need to specify the net you want to train using arg -net
 
 ```bash
-# use gpu to train vgg16
-$ python train.py -net vgg16 -gpu
+# use gpu to train resnet50
+$ python train.py -net resnet50 -gpu
 ```
 
 sometimes, you might want to use warmup training by set ```-warm``` to 1 or 2, to prevent network
@@ -94,7 +94,7 @@ Normally, the weights file with the best accuracy would be written to the disk w
 ### 5. test the model
 Test the model using test.py
 ```bash
-$ python test.py -net vgg16 -weights path_to_vgg16_weights_file
+$ python test.py -net resnet50 -weights path_to_resnet50_weights_file
 ```
 
 ## Implementated NetWork
