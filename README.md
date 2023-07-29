@@ -100,7 +100,7 @@ Normally, the weights file with the best accuracy would be written to the disk w
 ### 5. test the model
 Test the model using test.py
 ```bash
-$ python test.py -net resnet50 -weights path_to_resnet50_weights_file
+$ python test.py -net resnet50 -gpu -weights path_to_resnet50_weights_file
 ```
 
 ## Implementated NetWork
