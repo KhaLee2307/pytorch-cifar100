@@ -39,6 +39,12 @@ You need to specify the net you want to train using arg -net
 $ python train.py -net resnet50 -gpu
 ```
 
+### 5. compress model
+
+```bash
+$ python compression.py -net resnet50 -gpu
+```
+
 sometimes, you might want to use warmup training by set ```-warm``` to 1 or 2, to prevent network
 diverge during early training phase.
 
