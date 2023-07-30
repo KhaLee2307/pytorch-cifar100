@@ -22,9 +22,9 @@ from utils import get_network, get_test_dataloader
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-net', type=str, required=True, help='net type')
+    parser.add_argument('-net', type=str, default="resnet50", help='net type')
     parser.add_argument('-weights', type=str, required=True, help='the weights file you want to test')
-    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    parser.add_argument('-gpu', action='store_true', default=True, help='use gpu or not')
     parser.add_argument('-b', type=int, default=512, help='batch size for dataloader')
     args = parser.parse_args()
 
