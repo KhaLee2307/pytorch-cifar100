@@ -11,6 +11,7 @@ import sys
 import argparse
 import time
 from datetime import datetime
+from tqdm import tqdm
 
 import numpy as np
 import torch
@@ -30,7 +31,7 @@ def train(epoch):
 
     start = time.time()
     net.train()
-    for batch_index, (images, labels) in enumerate(cifar100_training_loader):
+    for batch_index, (images, labels) in enumerate(tqdm(cifar100_training_loader)):
 
         if args.gpu:
             labels = labels.cuda()
@@ -51,13 +52,13 @@ def train(epoch):
             if 'bias' in name:
                 writer.add_scalar('LastLayerGradients/grad_norm2_bias', para.grad.norm(), n_iter)
 
-        print('Training Epoch: {epoch} [{trained_samples}/{total_samples}]\tLoss: {:0.4f}\tLR: {:0.6f}'.format(
-            loss.item(),
-            optimizer.param_groups[0]['lr'],
-            epoch=epoch,
-            trained_samples=batch_index * args.b + len(images),
-            total_samples=len(cifar100_training_loader.dataset)
-        ))
+        # print('Training Epoch: {epoch} [{trained_samples}/{total_samples}]\tLoss: {:0.4f}\tLR: {:0.6f}'.format(
+        #     loss.item(),
+        #     optimizer.param_groups[0]['lr'],
+        #     epoch=epoch,
+        #     trained_samples=batch_index * args.b + len(images),
+        #     total_samples=len(cifar100_training_loader.dataset)
+        # ))
 
         #update training loss for each iteration
         writer.add_scalar('Train/loss', loss.item(), n_iter)
@@ -83,7 +84,7 @@ def eval_training(epoch=0, tb=True):
     test_loss = 0.0 # cost function error
     correct = 0.0
 
-    for (images, labels) in cifar100_test_loader:
+    for (images, labels) in tqdm(cifar100_test_loader):
 
         if args.gpu:
             images = images.cuda()
@@ -120,7 +121,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-net', type=str, required=True, help='net type')
-    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    parser.add_argument('-gpu', action='store_true', default=True, help='use gpu or not')
     parser.add_argument('-b', type=int, default=128, help='batch size for dataloader')
     parser.add_argument('-warm', type=int, default=1, help='warm up training phase')
     parser.add_argument('-lr', type=float, default=0.1, help='initial learning rate')
