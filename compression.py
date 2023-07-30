@@ -1,5 +1,5 @@
 import sys
-import random
+import logging
 import argparse
 import numpy as np
 
@@ -38,8 +38,9 @@ def compress(opt):
     # load pretrain
     model.load_state_dict(torch.load(opt.weights))
 
-    model_name = "resnet50"
+    model_name = "compression/resnet50"
 
+    logging.info("Starting compressing")
     # quantization
     if (opt.q):
         model = quantization(model)
@@ -49,6 +50,7 @@ def compress(opt):
     if (opt.p):
         model = prune_model(opt, model)
         model_name += f"_prune{opt.p_rate}"
+    logging.info("Finishing compressing")
 
     torch.save(model.state_dict(), f"{model_name}.pth")
 
