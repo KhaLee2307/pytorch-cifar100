@@ -1,10 +1,14 @@
 import sys
+import random
 import logging
 import argparse
 import numpy as np
 
 import torch
+from torch import nn
 import torch.backends.cudnn as cudnn
+import torch.nn.utils.prune as prune
+
 
 from utils import get_network
 
@@ -18,16 +22,39 @@ def quantization(model):
     return quantized_model
 
 def prune_model(opt, model):
-    """ Convert the model to NumPy for ease of handling """
-    model_np = model.state_dict()
-    for name, param in model.named_parameters():
-        if 'weight' in name:
-            weights = model_np[name].cpu().numpy()
-            threshold = np.percentile(np.abs(weights), opt.p_rate)
-            mask = np.abs(weights) > threshold
-            weights[~mask] = 0
-            model_np[name] = torch.from_numpy(weights).to(device)
-    model.load_state_dict(model_np)
+    # Convert the model to CPU to perform pruning
+    model.cpu()
+
+   # Identify the convolutional layers (2D Conv) in the model
+    conv_layers = [module for name, module in model.named_modules() if isinstance(module, nn.Conv2d)]
+
+    # Calculate the number of channels to prune based on the pruning rate
+    total_channels = sum([module.weight.data.shape[0] for module in conv_layers])
+    channels_to_prune = int(total_channels * opt.p_rate)
+
+    # Ensure that the number of channels to prune is not greater than the total number of channels
+    channels_to_prune = min(channels_to_prune, total_channels)
+
+    # Sort the convolutional layers based on their L1-norms of weights (ascending order)
+    sorted_conv_layers = sorted(conv_layers, key=lambda x: torch.norm(x.weight.data, 1))
+
+    # Prune the least important channels
+    for i in range(channels_to_prune):
+        # Calculate the number of channels to prune for this layer
+        channels_to_prune_layer = min(sorted_conv_layers[i].weight.data.shape[0], channels_to_prune)
+
+        # Prune the channels for this layer
+        prune.l1_unstructured(sorted_conv_layers[i], name='weight', amount=channels_to_prune_layer)
+
+        # Update the remaining channels to prune
+        channels_to_prune -= channels_to_prune_layer
+
+        if channels_to_prune == 0:
+            break
+
+    # Remove the pruning re-parametrization buffers
+    for module in conv_layers:
+        prune.remove(module, 'weight')
 
     return model
 
@@ -64,8 +91,17 @@ if __name__ == '__main__':
     parser.add_argument('-q', action='store_true', default=False, help='use quantization or not')
     parser.add_argument('-p', action='store_true', default=False, help='use pruning or not')
     parser.add_argument('-p_rate', type=int, default=1, help='pruning rate')
+    parser.add_argument(
+        "--manual_seed", type=int, default=111, help="for random seed setting"
+    )
 
     opt = parser.parse_args()
+
+    """ Seed and GPU setting """
+    random.seed(opt.manual_seed)
+    np.random.seed(opt.manual_seed)
+    torch.manual_seed(opt.manual_seed)
+    torch.cuda.manual_seed(opt.manual_seed)
 
     cudnn.benchmark = True  # It fasten training.
     cudnn.deterministic = True
