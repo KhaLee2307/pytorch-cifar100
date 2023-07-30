@@ -10,7 +10,7 @@ author baiyu
 
 import argparse
 
-from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 import torch
 import torchvision.transforms as transforms
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('-net', type=str, required=True, help='net type')
     parser.add_argument('-weights', type=str, required=True, help='the weights file you want to test')
     parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
-    parser.add_argument('-b', type=int, default=16, help='batch size for dataloader')
+    parser.add_argument('-b', type=int, default=512, help='batch size for dataloader')
     args = parser.parse_args()
 
     net = get_network(args)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     )
 
     net.load_state_dict(torch.load(args.weights))
-    print(net)
+    # print(net)
     net.eval()
 
     correct_1 = 0.0
@@ -47,14 +47,14 @@ if __name__ == '__main__':
     total = 0
 
     with torch.no_grad():
-        for n_iter, (image, label) in enumerate(cifar100_test_loader):
-            print("iteration: {}\ttotal {} iterations".format(n_iter + 1, len(cifar100_test_loader)))
+        for n_iter, (image, label) in enumerate(tqdm(cifar100_test_loader)):
+            # print("iteration: {}\ttotal {} iterations".format(n_iter + 1, len(cifar100_test_loader)))
 
             if args.gpu:
                 image = image.cuda()
                 label = label.cuda()
-                print('GPU INFO.....')
-                print(torch.cuda.memory_summary(), end='')
+                # print('GPU INFO.....')
+                # print(torch.cuda.memory_summary(), end='')
 
 
             output = net(image)
