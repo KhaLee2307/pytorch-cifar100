@@ -5,59 +5,48 @@ import argparse
 import numpy as np
 
 import torch
-from torch import nn
 import torch.backends.cudnn as cudnn
-import torch.nn.utils.prune as prune
-
+import torch_pruning as tp
 
 from utils import get_network
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def quantization(model):
     """ Convert the model to TorchScript (quantization-aware) """
     quantized_model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
 
-    return quantized_model
+def prune_model(model, prune_rate):
+    # Importance criteria
+    example_inputs = torch.randn(1,3,32,32)
+    imp = tp.importance.TaylorImportance()
 
-def prune_model(opt, model):
-    # Convert the model to CPU to perform pruning
-    model.cpu()
+    ignored_layers = []
+    for m in model.modules():
+        if isinstance(m, torch.nn.Linear) and m.out_features == 100:
+            ignored_layers.append(m) # DO NOT prune the final classifier!
+    
+    iterative_steps = 5 # progressive pruning
+    pruner = tp.pruner.MagnitudePruner(
+        model,
+        example_inputs,
+        importance=imp,
+        iterative_steps=iterative_steps,
+        ch_sparsity=prune_rate, # remove 50% channels, ResNet18 = {64, 128, 256, 512} => ResNet18_Half = {32, 64, 128, 256}
+        ignored_layers=ignored_layers,
+    )
 
-   # Identify the convolutional layers (2D Conv) in the model
-    conv_layers = [module for name, module in model.named_modules() if isinstance(module, nn.Conv2d)]
+    base_macs, base_nparams = tp.utils.count_ops_and_params(model, example_inputs)
+    for i in range(iterative_steps):
 
-    # Calculate the number of channels to prune based on the pruning rate
-    total_channels = sum([module.weight.data.shape[0] for module in conv_layers])
-    channels_to_prune = int(total_channels * opt.p_rate)
+        # Taylor expansion requires gradients for importance estimation
+        if isinstance(imp, tp.importance.TaylorImportance):
+            # A dummy loss, please replace it with your loss function and data!
+            loss = model(example_inputs).sum() 
+            loss.backward() # before pruner.step()
 
-    # Ensure that the number of channels to prune is not greater than the total number of channels
-    channels_to_prune = min(channels_to_prune, total_channels)
-
-    # Sort the convolutional layers based on their L1-norms of weights (ascending order)
-    sorted_conv_layers = sorted(conv_layers, key=lambda x: torch.norm(x.weight.data, 1))
-
-    # Prune the least important channels
-    for i in range(channels_to_prune):
-        # Calculate the number of channels to prune for this layer
-        channels_to_prune_layer = min(sorted_conv_layers[i].weight.data.shape[0], channels_to_prune)
-
-        # Prune the channels for this layer
-        prune.l1_unstructured(sorted_conv_layers[i], name='weight', amount=channels_to_prune_layer)
-
-        # Update the remaining channels to prune
-        channels_to_prune -= channels_to_prune_layer
-
-        if channels_to_prune == 0:
-            break
-
-    # Remove the pruning re-parametrization buffers
-    for module in conv_layers:
-        prune.remove(module, 'weight')
-
-    return model
-
+        pruner.step()
+        macs, nparams = tp.utils.count_ops_and_params(model, example_inputs)
+        
 def compress(opt):
 
     # setup model
@@ -65,20 +54,23 @@ def compress(opt):
     # load pretrain
     model.load_state_dict(torch.load(opt.weights))
 
-    model_name = "compression/resnet50"
-
+    # compression
     logging.info("Starting compressing")
+    model_name = "compressed/model"
+
     # quantization
     if (opt.q):
-        model = quantization(model)
+        quantization(model)
         model_name += "_quantize"
 
     # pruning
     if (opt.p):
-        model = prune_model(opt, model)
+        prune_model(model, opt.p_rate / 100)
         model_name += f"_prune{opt.p_rate}"
     logging.info("Finishing compressing")
-
+    
+    # save model
+    model.zero_grad()
     torch.save(model.state_dict(), f"{model_name}.pth")
 
 
@@ -87,10 +79,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-net', type=str, default="resnet50", help='net type')
     parser.add_argument('-weights', type=str, default="resnet50.pth", help='the weights file you want to compress')
-    parser.add_argument('-gpu', action='store_true', default=True, help='use gpu or not')
-    parser.add_argument('-q', action='store_true', default=False, help='use quantization or not')
+    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    parser.add_argument('-q', action='store_true', default=False, help='use quantization or not (only for cpu)')
     parser.add_argument('-p', action='store_true', default=False, help='use pruning or not')
-    parser.add_argument('-p_rate', type=int, default=1, help='pruning rate')
+    parser.add_argument('-p_rate', type=int, default=10, help='pruning rate')
     parser.add_argument(
         "--manual_seed", type=int, default=111, help="for random seed setting"
     )
