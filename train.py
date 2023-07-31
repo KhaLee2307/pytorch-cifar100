@@ -128,7 +128,8 @@ if __name__ == '__main__':
     parser.add_argument('-resume', action='store_true', default=False, help='resume training')
     args = parser.parse_args()
 
-    net = get_network(args)
+    net = torch.load("compressed/model_prune30.pth", map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    # net = get_network(args)
 
     #data preprocessing:
     cifar100_training_loader = get_training_dataloader(
@@ -217,13 +218,13 @@ if __name__ == '__main__':
         if epoch > settings.MILESTONES[1] and best_acc < acc:
             weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='best')
             print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
+            torch.save(net, "compressed/model_prune30_1.pth")
             best_acc = acc
             continue
 
         if not epoch % settings.SAVE_EPOCH:
             weights_path = checkpoint_path.format(net=args.net, epoch=epoch, type='regular')
             print('saving weights file to {}'.format(weights_path))
-            torch.save(net.state_dict(), weights_path)
+            torch.save(net, "compressed/model_prune30_1.pth")
 
     writer.close()
