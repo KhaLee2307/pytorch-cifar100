@@ -14,6 +14,7 @@ from utils import get_network
 def quantization(model):
     """ Convert the model to TorchScript (quantization-aware) """
     quantized_model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+    return quantized_model
 
 def prune_model(model, prune_rate):
     # Importance criteria
@@ -60,7 +61,7 @@ def compress(opt):
 
     # quantization
     if (opt.q):
-        quantization(model)
+        model = quantization(model)
         model_name += "_quantize"
 
     # pruning
@@ -71,7 +72,7 @@ def compress(opt):
     
     # save model
     model.zero_grad()
-    torch.save(model.state_dict(), f"{model_name}.pth")
+    torch.save(model, f"{model_name}.pth")
 
 
 if __name__ == '__main__':
@@ -82,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
     parser.add_argument('-q', action='store_true', default=False, help='use quantization or not (only for cpu)')
     parser.add_argument('-p', action='store_true', default=False, help='use pruning or not')
-    parser.add_argument('-p_rate', type=int, default=10, help='pruning rate')
+    parser.add_argument('-p_rate', type=int, default=15, help='pruning rate')
     parser.add_argument(
         "--manual_seed", type=int, default=111, help="for random seed setting"
     )
