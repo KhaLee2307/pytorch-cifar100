@@ -11,6 +11,7 @@ if [ -d "$folder_path" ]; then
     # Run test_performance
     for file in $files; do
         python test_performance.py -weights ${folder_path}/${file}
+	python test.py -weights ${folder_path}/${file}
     done
 else
     echo "Directory does not exist."
