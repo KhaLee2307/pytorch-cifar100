@@ -59,15 +59,15 @@ def compress(opt):
     logging.info("Starting compressing")
     model_name = "compressed/model"
 
-    # quantization
-    if (opt.q):
-        model = quantization(model)
-        model_name += "_quantize"
-
     # pruning
     if (opt.p):
         prune_model(model, opt.p_rate / 100)
         model_name += f"_prune{opt.p_rate}"
+
+    # quantization
+    if (opt.q):
+        model = quantization(model)
+        model_name += "_q"
     logging.info("Finishing compressing")
     
     # save model
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
     parser.add_argument('-q', action='store_true', default=False, help='use quantization or not (only for cpu)')
     parser.add_argument('-p', action='store_true', default=False, help='use pruning or not')
-    parser.add_argument('-p_rate', type=int, default=15, help='pruning rate')
+    parser.add_argument('-p_rate', type=int, default=30, help='pruning rate')
     parser.add_argument(
         "--manual_seed", type=int, default=111, help="for random seed setting"
     )
