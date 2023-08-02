@@ -24,8 +24,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-net', type=str, default="resnet50", help='net type')
     parser.add_argument('-weights', type=str, required=True, help='the weights file you want to test')
-    parser.add_argument('-gpu', action='store_true', default=True, help='use gpu or not')
-    parser.add_argument('-b', type=int, default=512, help='batch size for dataloader')
+    parser.add_argument('-gpu', action='store_true', default=False, help='use gpu or not')
+    parser.add_argument('-b', type=int, default=1024, help='batch size for dataloader')
+    parser.add_argument('-q', action='store_true', default=False, help='use quantization or not (only for cpu)')
     args = parser.parse_args()
 
     net = get_network(args)
@@ -38,7 +39,9 @@ if __name__ == '__main__':
         batch_size=args.b,
     )
     # net.load_state_dict(torch.load(args.weights))
-    net = torch.load(args.weights, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    net = torch.load(args.weights)
+    if (args.q):
+        net = torch.quantization.quantize_dynamic(net, {torch.nn.Linear}, dtype=torch.qint8)
     # print(net)
     net.eval()
 
@@ -51,6 +54,7 @@ if __name__ == '__main__':
             # print("iteration: {}\ttotal {} iterations".format(n_iter + 1, len(cifar100_test_loader)))
 
             if args.gpu:
+                print(1)
                 image = image.cuda()
                 label = label.cuda()
                 # print('GPU INFO.....')
